@@ -1,6 +1,6 @@
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, Button, TouchableOpacity, Dimensions, SafeAreaView } from 'react-native';
+import { StyleSheet, Text, View, Button, TouchableOpacity, Dimensions, SafeAreaView, PermissionsAndroid, FlatList } from 'react-native';
 import DocumentPicker from 'react-native-document-picker';
 import Video from 'react-native-video';
 
@@ -11,15 +11,123 @@ import Video from 'react-native-video';
 
 
 
-const App = () => {
-  const baseUrl = "http://192.168.117.103:5000/"
-  const [singleFile, setSingleFile] = useState();
-  const [pathFile, setPathFile] = useState('nothing...');
-  const [result, setResult] = useState('nothing...');
+// const requestPermission = async () => {
+//   try {
+//     const granted = await PermissionsAndroid.request(
+//       PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+//       {
+//         title: 'Can i read extranel storage?',
+//         message:'Ok khong?',
+//         buttonNeutral: 'Ask Me Later',
+//         buttonNegative: 'Cancel',
+//         buttonPositive: 'OK',
+//       },
+//     );
+//     if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+//       console.log('You can read storage');
+//     } else {
+//       console.log('Read storage denied');
+//     }
+//   } catch (err) {
+//     console.warn(err);
+//   }
+// };
 
-  const calcVLCPlayerHeight = (windowWidth, aspetRatio) => {
-    return windowWidth * aspetRatio;
-  };
+
+
+
+
+const App = () => {
+  const baseUrl = "http://192.168.1.19:5000/"
+  const [singleFile, setSingleFile] = useState();
+  const [pathFile, setPathFile] = useState(require('./videos/q2.mp4'));
+  const [result, setResult] = useState('...');
+  const [isPlayVideo, setIsPlayVideo] = useState(false);
+  const [textUrl, setTextUrl] = useState("pick a video ...");
+  const [data, setData] = useState();
+  var d=[];
+  var i = 0;
+  
+
+
+  const videoPlaying = (props) => {
+    const url = "file://" + props;
+    console.log("Url: ", url);
+    
+    return (
+      <Video
+        source={{uri: url}}
+        style={{
+          height: "100%",
+          width: "100%"}}
+        controls={true}
+        resizeMode="contain"
+        />
+      )
+  }
+
+  const notVideoPlaying = () => {
+    return (
+      <View styles={{width:'100%', height:'100%', justifyContent: 'center', alignItems:'center'}}>
+        <Text style={{fontSize:25, color:'red'}}>Not video to play.</Text>
+      </View>
+    )
+  }
+
+  const item = ({item}) => {
+    return(
+      <View style={{flexDirection:'row'}}>
+        <View style={{width: 30}}>
+          <Text>{item.id}</Text>
+        </View>
+        <View style={{width: 100}}>
+          <Text>{item.name}</Text>
+        </View>
+        <View style={{width: 100}}>
+          <Text>{item.result}</Text>
+        </View>
+        <View style={{width: 100}}>
+          <Text>{item.time}</Text>
+        </View>
+      </View>
+    )
+  }
+
+  const tableResult = () =>{
+    
+    return(
+      <View style={{flex: 1, justifyContent:'center', alignItems:'center', alignSelf:'center'}}>
+
+        <View style={{flexDirection:'row'}}>
+          <View style={{width: 30, backgroundColor:'red'}}>
+            <Text>Id</Text>
+          </View>
+          <View style={{width: 100, backgroundColor:'red'}}>
+            <Text>Name</Text>
+          </View>
+          <View style={{width: 100, backgroundColor:'red'}}>
+            <Text>Result</Text>
+          </View>
+          <View style={{width: 100, backgroundColor:'red'}}>
+            <Text>Time</Text>
+          </View>
+        </View>
+        <FlatList 
+          data={data}
+          renderItem={item}
+          keyExtractor={(item,index)=>index.toString()}/>
+
+        
+      </View>
+
+    )
+
+  }
+  
+  
+  
+
+
 
 
 
@@ -27,16 +135,24 @@ const App = () => {
 
 
   const uploadVideo = async () => {
+
+
+
     if (singleFile != null) {
 
 
-      console.log({ singleFile })
-      console.log('Uri: ', singleFile.uri)
+      console.log({ singleFile });
+      console.log('Uri: ', singleFile.uri);
+      console.log('Url: ', `${baseUrl}uploadvideo`);
       const formdata = new FormData();
 
-
-      formdata.append("file", singleFile);
+      setResult('processing...')
+      formdata.append("video", singleFile);
       console.log(formdata);
+      i++;
+      console.log("i: ", i);
+
+
 
       axios({
         method: "POST",
@@ -44,37 +160,44 @@ const App = () => {
         headers: { 'Content-Type': 'multipart/form-data', },
         data: formdata,
       })
-        .then(res => { console.log("res: ", res.data); setResult(res.data) })
-        .catch(err => console.log("err: ", err));
+        .then(res => { console.log("res: ", res.data); setResult(res.data); })
+        .catch(err => {console.log("err: ", err); setResult("ERROR");d.push({id: i, name: 'Duy', result: 'dev', time: 0});  setData(d)});
+
+        
 
 
 
-    } else {
 
-      alert('Please Select File first');
+
     }
   };
 
   const selectFile = async () => {
 
     try {
-
-      console.log("btn selectfile click")
       const res = await DocumentPicker.pickSingle({
 
         type: [DocumentPicker.types.allFiles],
         presentationStyle: 'fullScreen',
         copyTo: 'cachesDirectory'
+      
       });
 
 
       setSingleFile(res);
-      setPathFile(res.uri);
-      setResult("nothing...")
+      setPathFile(res.fileCopyUri);
+      console.log("Path file: ", pathFile);
+      setIsPlayVideo(true);
+      setTextUrl(res.name);
+      setResult('...');
+
+      console.log("File to play: ", pathFile);
+
       console.log("path of video: ", pathFile);
 
     } catch (err) {
       setSingleFile(null);
+  
       if (DocumentPicker.isCancel(err)) {
 
         alert('Canceled');
@@ -109,37 +232,46 @@ const App = () => {
       <View style={styles.topContainer}>
         {/* video is here */}
 
-        <Video
-          source={require('./videos/q2.mp4')}
-          style={styles.video}
-          controls={true}
-        />
+        
+        
+        {isPlayVideo == true ? videoPlaying(pathFile) : notVideoPlaying() } 
+
 
       </View>
       <View style={styles.middleContainer}>
-        <View style={{ flexDirection: 'row', width: '100%', backgroundColor: 'green', height: '30%', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', width: '100%', height: 30, alignItems: 'center' }}>
           <Text style={styles.titleTextStyle}>File: </Text>
-          <Text style={styles.textStyle}>{pathFile}</Text>
+          <Text style={styles.textStyle}>{textUrl}</Text>
         </View>
 
-        <View style={{ flexDirection: 'row', width: '100%', backgroundColor: 'yellow', height: '30%', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', width: '100%', height: 30, alignItems: 'center' }}>
           <Text style={styles.titleTextStyle}>Result: </Text>
-          <Text style={styles.textStyle}>{result}</Text>
+          <Text style={{...styles.textStyle, color: result!="ERROR"?"#000000":"red"}}>{result}</Text>
         </View>
+        {tableResult()}
       </View>
+      
       <View style={styles.bottomContainer}>
+
+      
+        
         <TouchableOpacity
-          style={styles.btnSelectFileStyle}
+          style={styles.btnStyle}
           activeOpacity={0.5}
           onPress={selectFile}>
-          <Text style={styles.buttonTextStyle}>Select File</Text>
+          <Text style={styles.buttonTextStyle}>Select file</Text>
         </TouchableOpacity>
+
         <TouchableOpacity
-          style={styles.btnUploadFileStyle}
+          style={styles.btnStyle}
           activeOpacity={0.5}
           onPress={uploadVideo}>
-          <Text style={styles.buttonTextStyle}>Upload File</Text>
+          <Text style={styles.buttonTextStyle}>Predict</Text>
         </TouchableOpacity>
+
+        
+        
+
       </View>
     </SafeAreaView>
   );
@@ -160,40 +292,43 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'white',
 
   },
 
-  videoStyle: {
-    width: "100%",
-    height: 200,
-  },
+
 
 
   topContainer: {
-    backgroundColor: 'red',
-    width: '100%',
-    height: '40%'
+    backgroundColor: 'white',
+    
+    flex: 1,
+    backgroundColor: 'black',
+    justifyContent: 'center', 
+    alignItems:'center'
   },
 
   middleContainer: {
-    backgroundColor: 'pink',
-    width: '100%',
-    height: '30%'
-
+    backgroundColor: 'green',
+    
+    flex: 1.5,
 
   },
 
   bottomContainer: {
-    backgroundColor: 'white',
-    width: '100%',
-    height: '30%',
+    backgroundColor: 'blue',
+    
+    width:'100%',
+    height:60,
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: '10%'
+    
   },
 
-  btnSelectFileStyle: {
+
+
+
+  btnStyle: {
     backgroundColor: '#00cc00',
     borderWidth: 0,
     width: 100,
@@ -203,28 +338,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 10,
-    marginEnd: '10%'
-
-  },
-
-
-  btnUploadFileStyle: {
-    backgroundColor: '#00cc00',
-    borderWidth: 0,
-    width: 100,
-    height: 50,
-    color: '#FFFFFF',
-    borderColor: '#307ecc',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 10,
+    marginLeft: 10
 
   },
 
   buttonTextStyle: {
     color: "#FFFFFF",
     alignSelf: 'center',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    fontSize: 20,
+    
 
   },
 
@@ -232,8 +355,9 @@ const styles = StyleSheet.create({
   textStyle: {
     fontSize: 15,
     color: '#000000',
-    marginTop: 5,
-    maxWidth: "80%",
+    marginTop: 10,
+    maxWidth:'100%',
+    
 
 
   },
@@ -245,8 +369,15 @@ const styles = StyleSheet.create({
     marginLeft: 5
   },
 
-  video: {
-    height: 300,
-    width: 400,
-  }
+  videoStyle: {
+    height: "100%",
+    width: "100%",
+
+  },
+
+  item: {
+    padding: 10,
+    fontSize: 18,
+    height: 44,
+  },
 });
